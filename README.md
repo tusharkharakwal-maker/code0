@@ -14,6 +14,19 @@ npx tsc --noEmit
 npm run build
 ```
 
+## Vercel deployment
+
+Import this repository with its root directory set to the repository root. The committed `vercel.json` selects the Next.js preset, runs `npm run build:vercel`, and uses `.next` as the output directory. It overrides dashboard build and output settings.
+
+To check the Vercel production build locally:
+
+```sh
+npm run build:vercel
+npm run start:vercel
+```
+
+For Next.js development, run `npm run dev:vercel`. The original `dev` and `build` scripts remain the Vinext/Cloudflare path used by the existing Sites deployment. Vinext emits `dist/`, which cannot be used as a Next.js build on Vercel.
+
 ## Content
 
 - All 11 requested services are in `app/studio.tsx`, grouped into Development, Creative & Design, and Marketing & SEO.
