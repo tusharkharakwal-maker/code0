@@ -1,12 +1,14 @@
 'use client';
 
 import Image from 'next/image';
-import { useEffect, useState, type FormEvent } from 'react';
-import { Plus, Play, Pause, Menu, Code2, Shapes, Search, Check, Copy, Mail } from 'lucide-react';
+import { useRef, useState, type FormEvent } from 'react';
+import { Plus, Menu, Code2, Shapes, Search, Check, Copy, Mail, Asterisk } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
 import MotionExperience from './motion-experience';
+import { GenerativeVisual, MotionStory } from './motion-graphics';
+import { MotionProvider, MotionToggle, useMotionSettings } from './motion-settings';
 
 const email = 'tusharkharakwal@gmail.com';
 const navigation = [['Work', 'work'], ['Services', 'services'], ['Studio', 'about'], ['Process', 'process']];
@@ -67,13 +69,34 @@ function ProjectEnquiry({ className = 'button', children = 'Start a project' }: 
 
 function Navigation() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuDestination = useRef<string | null>(null);
+  function followMenuLink(event: React.MouseEvent<HTMLAnchorElement>, id: string) {
+    event.preventDefault();
+    menuDestination.current = id;
+    setMenuOpen(false);
+  }
+  function restoreMenuFocus(event: Event) {
+    const id = menuDestination.current;
+    if (!id) return;
+    event.preventDefault();
+    menuDestination.current = null;
+    requestAnimationFrame(() => {
+      const section = document.getElementById(id);
+      if (!section) return;
+      section.tabIndex = -1;
+      section.focus({ preventScroll: true });
+      section.scrollIntoView({ block: 'start' });
+      history.replaceState(null, '', `#${id}`);
+      section.addEventListener('blur', () => section.removeAttribute('tabindex'), { once: true });
+    });
+  }
   return <header className="header-wrap"><div className="site-header shell">
     <a className="brand" href="#top" aria-label="Codies home"><Image src="/codies-logo.svg" width={130} height={32} alt="Codies" priority /></a>
     <nav aria-label="Main navigation">{navigation.map(([label,id]) => <a key={id} href={`#${id}`}><span>{label}</span></a>)}</nav>
-    <div className="header-actions"><ProjectEnquiry className="button button-small"/>
+    <div className="header-actions"><MotionToggle/><ProjectEnquiry className="button button-small"/>
       <Dialog open={menuOpen} onOpenChange={setMenuOpen}><DialogTrigger asChild><button className="menu-toggle" aria-label="Open navigation"><Menu size={23}/></button></DialogTrigger>
-        <DialogContent className="mobile-navigation" data-lenis-prevent><DialogTitle className="sr-only">Navigation</DialogTitle><DialogDescription className="sr-only">Explore Codies studio</DialogDescription><Image src="/codies-logo.svg" width={125} height={30} alt="Codies"/>
-          <nav aria-label="Mobile navigation">{navigation.map(([label,id],i) => <a href={`#${id}`} key={id} onClick={() => setMenuOpen(false)}><span>0{i+1}</span>{label}</a>)}<a href="#contact" onClick={() => setMenuOpen(false)}><span>05</span>Contact</a></nav>
+        <DialogContent className="mobile-navigation" data-lenis-prevent onCloseAutoFocus={restoreMenuFocus}><DialogTitle className="sr-only">Navigation</DialogTitle><DialogDescription className="sr-only">Explore Codies studio</DialogDescription><Image src="/codies-logo.svg" width={125} height={30} alt="Codies"/>
+          <nav aria-label="Mobile navigation">{navigation.map(([label,id],i) => <a href={`#${id}`} key={id} onClick={event => followMenuLink(event, id)}><span>0{i+1}</span>{label}</a>)}<a href="#contact" onClick={event => followMenuLink(event, 'contact')}><span>05</span>Contact</a></nav>
           <a className="mobile-email" href={`mailto:${email}`}>{email}</a>
         </DialogContent>
       </Dialog>
@@ -83,52 +106,52 @@ function Navigation() {
 
 function ProjectCard({ project, index }: { project: typeof projects[number]; index: number }) {
   return <Dialog>
-    <article className={`project project-${index} reveal`}>
-      <DialogTrigger asChild><button className="project-button" aria-label={`Explore ${project.name} concept`} data-cursor="VIEW"><div className="project-image"><Image src={project.image} alt={project.alt} width={1200} height={900} sizes="(max-width: 767px) 100vw, 55vw"/><span className="project-open"><Plus size={22}/></span></div><div className="project-meta"><h3>{project.name}</h3><span>{project.category}</span></div></button></DialogTrigger>
-      <p className="project-caption">{project.line}</p>
+    <article className={`project project-${index}`}>
+      <div className="project-frame"><DialogTrigger asChild><button className="project-button" aria-label={`Explore ${project.name} concept`}>
+        <div className="project-copy"><p className="project-category">{project.category}</p><h3>{project.name}</h3><p className="project-caption">{project.line}</p><span className="project-explore">Explore concept <Plus size={20}/></span></div>
+        <div className="project-image"><Image src={project.image} alt={project.alt} width={1200} height={900} sizes="(max-width: 767px) 100vw, 65vw"/></div>
+      </button></DialogTrigger></div>
     </article>
     <DialogContent className="project-dialog" data-lenis-prevent><Image src={project.image} alt={project.alt} width={1200} height={900}/><div className="project-dialog-copy"><p className="eyebrow">Independent concept</p><DialogTitle className="dialog-title">{project.name}</DialogTitle><DialogDescription className="dialog-description">{project.body}</DialogDescription><div className="project-detail-grid"><div><h4>The challenge</h4><p>{project.challenge}</p></div><div><h4>The direction</h4><p>{project.approach}</p></div></div><div className="tags">{project.scope.map(s => <span key={s}>{s}</span>)}</div><p className="concept-note">A self-initiated exploration of what’s possible. This is concept work, not a client commission.</p></div></DialogContent>
   </Dialog>;
 }
 
-function StudioReel() {
-  const [open, setOpen] = useState(false);
-  const [scene, setScene] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const scenes = ['MAKE IT BOLD.', 'MAKE IT MOVE.', 'MAKE IT MATTER.', 'MAKE IT CODIES.'];
-  useEffect(() => { if (!open || !playing) return; const timer = setInterval(() => setScene(s => (s+1)%4), 2400); return () => clearInterval(timer); }, [open, playing]);
-  return <Dialog open={open} onOpenChange={v => {setOpen(v);setPlaying(v && !matchMedia('(prefers-reduced-motion: reduce)').matches);}}><DialogTrigger asChild><button className="reel-button reveal" data-cursor="PLAY"><span className="reel-small">A little code.<br/>A lot of character.</span><span className="reel-type">Ideas in<br/><em>motion.</em></span><span className="play-circle"><Play size={22} fill="currentColor"/><span>Play motion study</span></span></button></DialogTrigger>
-    <DialogContent className="reel-dialog" data-lenis-prevent><DialogTitle className="sr-only">Codies motion study</DialogTitle><DialogDescription className="sr-only">An original, four-scene typographic exploration. Use the controls to play, pause, or select a scene.</DialogDescription><div className={`reel-screen reel-scene-${scene}`} aria-live="off"><span className="reel-word" key={scene}>{scenes[scene]}</span><Image src="/codies-logo.svg" alt="Codies" width={120} height={29}/></div><div className="reel-controls"><button aria-label={playing?'Pause motion study':'Play motion study'} onClick={()=>setPlaying(!playing)}>{playing?<Pause/>:<Play/>}</button><div>{scenes.map((s,i)=><button className={i===scene?'active':''} key={s} aria-label={`Scene ${i+1}: ${s}`} aria-pressed={i===scene} onClick={()=>{setScene(i);setPlaying(false);}}>0{i+1}</button>)}</div><span>Studio motion study</span></div></DialogContent>
-  </Dialog>;
+function KineticText({text}:{text:string}) {
+  return <>{text.split(' ').map((word,index)=><span className="kinetic-word" key={`${word}-${index}`}>{index>0 && <span className="glyph-space"> </span>}{[...word].map((letter,i)=><span className="glyph" key={i}>{letter}</span>)}</span>)}</>;
 }
+function Lines({lines,className=''}:{lines:string[];className?:string}) {
+  return <h2 className={className} data-reveal-lines>{lines.map(line=><span className="line-mask" key={line}><span className="line-inner">{line}</span></span>)}</h2>;
+}
+export default function Codies() { return <MotionProvider><Studio/></MotionProvider>; }
 
-export default function Codies() {
-  return <>
+function Studio() {
+  const {paused,reduced}=useMotionSettings();
+  return <div className={`codies-site ${paused || reduced ? "motion-disabled" : ""}`}>
     <a className="skip-link" href="#main-content">Skip to content</a>
     <div id="top"/>
     <Navigation/>
     <main id="main-content">
       <section className="hero shell" aria-labelledby="hero-title">
-        <div className="hero-art" aria-hidden="true"><Image src="/hero-chrome.webp" alt="" width={1440} height={960} priority sizes="(max-width:767px) 100vw, 65vw"/></div>
-        <p className="eyebrow hero-eyebrow">Development. Design. Digital growth.</p>
-        <h1 id="hero-title"><span><span className="hero-line">DIGITAL</span></span><span><span className="hero-line">WITH <em>IMPACT.</em></span></span></h1>
+        <div className="hero-top"><p className="eyebrow">Independent digital studio</p><span className="hero-discipline">Development / Design / Growth</span></div>
+        <div className="hero-visual"><GenerativeVisual/><div className="visual-caption" aria-hidden="true">Ideas, taking shape.</div></div>
+        <h1 id="hero-title" className="hero-title" aria-label="Digital. With impact."><span className="hero-title-line" aria-hidden="true"><KineticText text="Digital."/></span><span className="hero-title-line" aria-hidden="true"><KineticText text="With impact."/></span></h1>
         <div className="hero-bottom"><p>We bring ambitious brands to life.<br/>Through code, creativity, and a little audacity.</p><a href="#work" className="text-link">Explore our work <Plus size={18}/></a></div>
       </section>
-      <div className="marquee" aria-label="Design, develop, create, grow"><div className="marquee-track" aria-hidden="true">{[0,1,2,3].map(i => <span key={i}>DESIGN <i>✳</i> DEVELOP <i>✳</i> CREATE <i>✳</i> GROW <i>✳</i> </span>)}</div><button className="marquee-toggle" aria-label="Pause moving text" onClick={e=>{const el=e.currentTarget.parentElement!;const paused=el.classList.toggle('is-paused');e.currentTarget.setAttribute('aria-label',paused?'Play moving text':'Pause moving text');e.currentTarget.setAttribute('aria-pressed',String(paused));}}><Pause size={14}/></button></div>
+      <div className="discipline-band" aria-label="Design, develop, create, grow"><span>Design</span><Asterisk aria-hidden="true"/><span>Develop</span><Asterisk aria-hidden="true"/><span>Create</span><Asterisk aria-hidden="true"/><span>Grow</span></div>
       <section id="work" className="work section shell">
-        <div className="work-heading reveal"><p className="eyebrow">A taste of what’s possible</p><h2>Good ideas.<br/><span className="muted">Great execution.</span></h2><p className="section-description">Independent concepts exploring the intersection of brand, design, and technology.</p></div>
-        <div className="projects-grid">{projects.map((p,i)=><ProjectCard key={p.name} project={p} index={i}/>)}</div>
+        <div className="work-heading"><p className="eyebrow">Selected explorations</p><Lines lines={["Good ideas.","Great execution."]}/><p className="section-description">Independent concepts exploring the intersection of brand, design, and technology.</p></div>
+        <div className="project-stack">{projects.map((p,i)=><ProjectCard key={p.name} project={p} index={i}/>)}</div>
       </section>
-      <section id="about" className="about section shell"><p className="eyebrow">The Codies mindset</p><div className="about-content"><h2 className="word-reveal">Big on ideas.<br/>Obsessed with<br/><span>the details.</span></h2><div className="about-copy reveal"><p>We’re a creative development studio connecting what your brand says with what it can do.</p><p>From the first sketch to the final line of code, we bring design, development, and growth into one conversation. Less back and forth. More moving forward.</p><div className="studio-facts"><div><strong>11</strong><span>Specialist services</span></div><div><strong>03</strong><span>Connected disciplines</span></div></div></div></div></section>
-      <section id="services" className="services section shell"><div className="services-heading reveal"><h2>From the first pixel<br/>to the next big thing.</h2><p className="section-description">Everything your digital presence needs. Thoughtfully connected.</p></div>
+      <section id="about" className="about section shell"><div className="about-head"><p className="eyebrow">The Codies mindset</p><Asterisk className="about-asterisk" size={54} strokeWidth={1}/></div><h2 className="manifesto">{['Big','on','ideas.','Obsessed','with','the','details.'].map((word,i)=><span className={`manifesto-word ${i>3?'accent':''}`} key={word}>{word}{' '}</span>)}</h2><div className="about-bottom"><div className="studio-facts"><div><strong>11</strong><span>Specialist services</span></div><div><strong>03</strong><span>Connected disciplines</span></div></div><div className="about-copy reveal"><p>We’re a creative development studio connecting what your brand says with what it can do.</p><p>From the first sketch to the final line of code, we bring design, development, and growth into one conversation. Less back and forth. More moving forward.</p></div></div></section>
+      <section id="services" className="services section shell"><div className="services-heading"><Lines lines={["From the first pixel","to the next big thing."]}/><p className="section-description">Everything your digital presence needs. Thoughtfully connected.</p></div>
         <Accordion type="single" collapsible defaultValue="Development" className="services-list">{services.map((s,i)=><AccordionItem className="service-row" value={s.title} key={s.title}><AccordionTrigger className="service-trigger"><span className="service-number">0{i+1}</span><span className="service-title">{s.title}<span>{s.subtitle}</span></span><span className="service-sign" aria-hidden="true"><Plus size={24}/></span></AccordionTrigger><AccordionContent className="service-content"><div className="service-description"><s.icon size={31} strokeWidth={1.25}/><p>{s.description}</p></div><ul>{s.items.map(item=><li key={item}>{item}<span aria-hidden="true">+</span></li>)}</ul></AccordionContent></AccordionItem>)}</Accordion>
       </section>
-      <section className="reel-section shell" aria-label="Studio motion study"><StudioReel/></section>
-      <section id="process" className="process section shell"><div className="process-intro"><p className="eyebrow">Good work takes a good process</p><h2>Clear direction.<br/><span className="muted">At every step.</span></h2><p className="section-description">You bring the ambition. We bring a plan to make it happen, with you in the loop from day one.</p></div><ol className="process-list">{process.map(([title,body],i)=><li key={title} className="process-step reveal"><span className="process-number">0{i+1}</span><div><h3>{title}</h3><p>{body}</p></div></li>)}</ol></section>
-      <section className="faq section shell"><h2>A few things<br/>you might be wondering.</h2><Accordion type="single" collapsible className="faq-list"><AccordionItem value="scope"><AccordionTrigger>Can you take care of the whole project?</AccordionTrigger><AccordionContent>Yes. We can bring development, creative design, and search strategy together, or work on one specific part alongside your existing team. We agree on the scope before starting.</AccordionContent></AccordionItem><AccordionItem value="timing"><AccordionTrigger>How long does a project take?</AccordionTrigger><AccordionContent>It depends on the scope, content, and technical requirements. Once we understand your brief, we’ll outline the milestones and a realistic timeline before you commit.</AccordionContent></AccordionItem><AccordionItem value="start"><AccordionTrigger>What do you need to get started?</AccordionTrigger><AccordionContent>A little context goes a long way: what you’re building, who it’s for, and what you want to achieve. Bring any brand assets or references you have. We’ll work through the rest together.</AccordionContent></AccordionItem></Accordion></section>
-      <section id="contact" className="contact section shell"><p className="eyebrow reveal">Your next chapter starts here</p><h2 className="reveal">HAVE A GOOD<br/>FEELING <span>ABOUT THIS?</span></h2><div className="contact-bottom reveal"><p>Tell us what you’re thinking.<br/>Let’s make something worth putting out there.</p><ProjectEnquiry className="button button-large">Let’s make it happen <Plus size={21}/></ProjectEnquiry></div></section>
+      <MotionStory/>
+      <section id="process" className="process section shell"><div className="process-intro"><p className="eyebrow">Good work takes a good process</p><Lines lines={["Clear direction.","At every step."]}/><div className="process-orbit" aria-hidden="true"><span/><span/><span/><Asterisk size={36} strokeWidth={1}/></div><p className="section-description">You bring the ambition. We bring a plan to make it happen, with you in the loop from day one.</p></div><div className="process-list-wrap"><span className="process-path" aria-hidden="true"/><ol className="process-list">{process.map(([title,body],i)=><li key={title} className="process-step"><span className="process-number">0{i+1}</span><div className="process-step-copy"><h3>{title}</h3><p>{body}</p></div></li>)}</ol></div></section>
+      <section className="faq section shell"><Lines lines={["A few things you","might be wondering."]}/><Accordion type="single" collapsible className="faq-list"><AccordionItem value="scope"><AccordionTrigger>Can you take care of the whole project?</AccordionTrigger><AccordionContent>Yes. We can bring development, creative design, and search strategy together, or work on one specific part alongside your existing team. We agree on the scope before starting.</AccordionContent></AccordionItem><AccordionItem value="timing"><AccordionTrigger>How long does a project take?</AccordionTrigger><AccordionContent>It depends on the scope, content, and technical requirements. Once we understand your brief, we’ll outline the milestones and a realistic timeline before you commit.</AccordionContent></AccordionItem><AccordionItem value="start"><AccordionTrigger>What do you need to get started?</AccordionTrigger><AccordionContent>A little context goes a long way: what you’re building, who it’s for, and what you want to achieve. Bring any brand assets or references you have. We’ll work through the rest together.</AccordionContent></AccordionItem></Accordion></section>
+      <section id="contact" className="contact section shell"><p className="eyebrow reveal">Your next chapter starts here</p><h2 className="contact-title" aria-label="Let’s make an impact."><span aria-hidden="true"><KineticText text="Let’s make"/></span><span aria-hidden="true"><KineticText text="an impact."/></span></h2><div className="contact-bottom reveal"><p>Tell us what you’re thinking.<br/>Let’s make something worth putting out there.</p><ProjectEnquiry className="button button-large">Let’s make it happen <Plus size={21}/></ProjectEnquiry></div></section>
     </main>
     <footer className="footer shell"><div className="footer-top"><a className="footer-email" href={`mailto:${email}`}>{email}</a><a href="#top" className="text-link">Back to top <Plus size={15}/></a></div><a href="#top" aria-label="Codies home" className="footer-wordmark"><Image src="/codies-logo.svg" alt="Codies" width={1330} height={320} sizes="100vw"/></a><div className="footer-bottom"><p>© {new Date().getFullYear()} Codies. Built with intent.</p><nav aria-label="Footer navigation">{navigation.slice(0,3).map(([label,id])=><a key={id} href={`#${id}`}>{label}</a>)}<a href="#contact">Contact</a></nav><span>Code. Create. Connect.</span></div></footer>
     <MotionExperience/>
-  </>;
+  </div>;
 }
